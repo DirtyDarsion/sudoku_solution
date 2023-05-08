@@ -161,3 +161,4 @@ cython_debug/
 
 # Output file
 output.xlsx
+log.txt
