@@ -1,28 +1,32 @@
+import os
 import pandas as pd
 import xlsxwriter
 import copy
+import openpyxl
 
 
-def printing_table(table):
-    for line in table:
-        print(*line)
+def zeros_and_empty_to_list_digits(table):
+    """
+    Заменяет все ноли в таблице списком с цифрами от 1 до 9.
 
-
-def to_log(text):
-    with open('log.txt', 'a', encoding='utf-8') as file:
-        file.write(text + '\n\n')
-
-
-def zeros_to_list(table):
+    :param table:
+    :return:
+    """
     new_table = []
     for line in table:
-        line = [[i for i in range(1, 10)] if x == 0 else x for x in line]
+        line = [[i for i in range(1, 10)] if not x else x for x in line]
         new_table.append(line)
 
     return new_table
 
 
 def get_cols(table):
+    """
+    Возвращает список из столбцов таблицы
+
+    :param table:
+    :return:
+    """
     cols = []
     for i in range(9):
         col = []
@@ -34,6 +38,13 @@ def get_cols(table):
 
 
 def get_squads(table):
+    """
+    Создает список из элементов таблицы, разделенные на квадраты 3х3, как в судоку.
+    Возвращает таблицу элементов и таблицу с соответствующими им индексами во входной таблице.
+
+    :param table:
+    :return:
+    """
     squads = []
     squad_indexes = []
     for i in range(0, 7, 3):
@@ -50,143 +61,180 @@ def get_squads(table):
     return squads, squad_indexes
 
 
-def item_in_list(table, j, item, name, table_print):
+def item_in_list(items, key):
+    """
+    Принимается группа элементов и определенное значение.
+    Если в группе есть элемент list с данным числом, то число удаляется.
+
+    :param items:
+    :param key:
+    :return:
+    """
     for i in range(9):
-        if isinstance(table[j][i], list):
-            if len(table[j][i]) == 1:
-                to_log(f'удаление скобок, {name}, {j}, {i}')
-                pd_table = pd.DataFrame(table_print)
-                to_log(pd_table.to_string())
-                table[j][i] = table[j][i][0]
-                return
-            if item in table[j][i]:
-                to_log(f'удаление элемента, {item}, {name}, {j}, {i}')
-                pd_table = pd.DataFrame(table_print)
-                to_log(pd_table.to_string())
-                table[j][i].remove(item)
+        if isinstance(items[i], list):
+            if key in items[i]:
+                items[i].remove(key)
 
 
-def only_one_option_on_line(line, item):
+def open_list_with_one_item(items):
+    """
+    Ищет внутри группы элементов списки с одним значением и ставит вместо списка данное значение.
+
+    :param items:
+    :return:
+    """
+    for i in range(9):
+        if isinstance(items[i], list):
+            if len(items[i]) == 1:
+                items[i] = items[i][0]
+
+
+def only_one_option_in_line(items, item):
+    """
+    Принимает группу элементов и искомый элемент.
+    Если искомый элемент единственный в группе, то возвращает его индекс
+    :param items:
+    :param item:
+    :return:
+    """
     count = 0
+    indx = None
     for i in range(9):
-        if isinstance(line[i], list):
-            if item in line[i]:
+        if isinstance(items[i], list):
+            if item in items[i]:
                 count += 1
                 indx = i
 
     if count == 1:
         return indx
-    else:
-        return None
 
 
-def two_pairs(line, item):
+def two_pairs(items, item):
+    """
+    Получает группу элементов и элемент содержащий список из двух цифр.
+    Удаляет из всех других списков полученные две цифры, оставляя только те элементы,
+    который полностью совпадают с заданными.
+    :param items:
+    :param item:
+    :return:
+    """
     for i in range(9):
-        if isinstance(line[i], list):
-            if line[i] != item:
-                if item[0] in line[i]:
-                    line[i].remove(item[0])
-                if item[1] in line[i]:
-                    line[i].remove(item[1])
+        if isinstance(items[i], list):
+            if items[i] != item:
+                if item[0] in items[i]:
+                    items[i].remove(item[0])
+                if item[1] in items[i]:
+                    items[i].remove(item[1])
+
+
+def two_pairs_line(items, i):
+    """
+    Получает таблицу элементов и порядковый номер строки. Находит два одиннаковых спаренных значения.
+    :param items:
+    :param i:
+    :return:
+    """
+    save_items = []
+    for j in range(9):
+        if isinstance(items[i][j], list):
+            if len(items[i][j]) == 2:
+                if items[i][j] in save_items:
+                    two_pairs(items[i], items[i][j])
+                    save_items.remove(items[i][j])
+                else:
+                    save_items.append(items[i][j])
 
 
 def main():
-    table = [
-        [9, 8, 2, 0, 0, 1, 0, 6, 3],
-        [6, 0, 0, 3, 2, 9, 0, 0, 8],
-        [0, 0, 0, 0, 8, 0, 0, 0, 0],
-        [0, 0, 1, 5, 0, 3, 0, 0, 0],
-        [3, 0, 9, 0, 1, 0, 7, 5, 0],
-        [0, 0, 8, 0, 0, 7, 0, 1, 6],
-        [1, 0, 0, 0, 0, 0, 6, 3, 0],
-        [7, 0, 0, 0, 0, 0, 0, 2, 0],
-        [0, 0, 0, 0, 3, 0, 0, 9, 0],
-    ]
+    table = []
 
-    table1 = [
-        [0, 5, 2, 0, 7, 1, 0, 4, 8],
-        [0, 0, 6, 0, 4, 0, 1, 2, 5],
-        [1, 0, 8, 0, 0, 2, 7, 0, 9],
-        [2, 0, 5, 4, 9, 0, 8, 1, 6],
-        [8, 0, 4, 0, 1, 6, 5, 3, 7],
-        [6, 0, 7, 5, 8, 3, 2, 0, 4],
-        [0, 2, 0, 7, 6, 4, 0, 8, 1],
-        [7, 6, 1, 8, 0, 9, 4, 5, 2],
-        [4, 0, 9, 0, 2, 5, 0, 7, 3],
-    ]
+    choose_mode = True
+    while choose_mode:
+        mode = input('Для решения судоку выберите способ ввода данных: [1] - Указать xlsx файл, '
+                     '[2] - Ввести через коммандную строку, '
+                     '[3] - Выйти: ')
+        if mode == '1':
+            file_name = input('Напишите название файла вместе с расширением: ')
+            if file_name.endswith('.xlsx') and os.path.exists(file_name):
+                excel_file = openpyxl.load_workbook(file_name)
+                excel_sheet = excel_file.active
 
-    table = zeros_to_list(table)
-    cols = get_cols(table)
-    squads, squad_index = get_squads(table)
-    old_table = []
+                table = []
+                for i in range(excel_sheet.max_row - 1):
+                    row = []
+                    for col in excel_sheet.iter_cols(1, excel_sheet.max_column - 1):
+                        row.append(col[i].value)
+                    table.append(row)
+
+                choose_mode = False
+            else:
+                print('Неправильный формат файла.')
+        elif mode == '2':
+            pass
+        elif mode == '3':
+            return
+
+    table = zeros_and_empty_to_list_digits(table)
     count = 0
+    old_table = []
 
-    for _ in range(1):
-        while table != old_table:
-            count += 1
-            old_table = copy.deepcopy(table)
-            for i in range(1, 10):
-                for j in range(9):
-                    if i in table[j]:
-                        item_in_list(table, j, i, "line", table)
-                    if i in cols[j]:
-                        item_in_list(cols, j, i, "col", table)
-                    if i in squads[j]:
-                        item_in_list(squads, j, i, "squad", table)
+    while old_table != table:
+        count += 1
+        old_table = copy.deepcopy(table)
+        cols = get_cols(table)
+        squads, squad_index = get_squads(table)
 
-            for i in range(1, 10):
-                for j in range(9):
-                    indx = only_one_option_on_line(table[j], i)
+        """
+        Удаление записей о числах
+        """
+        for digit in range(1, 10):
+            for i in range(9):
+                if digit in table[i]:
+                    item_in_list(table[i], digit)
+                if digit in cols[i]:
+                    item_in_list(cols[i], digit)
+                if digit in squads[i]:
+                    item_in_list(squads[i], digit)
+
+        for i in range(9):
+            open_list_with_one_item(table[i])
+            open_list_with_one_item(cols[i])
+            open_list_with_one_item(squads[i])
+
+        for digit in range(1, 10):
+            for i in range(9):
+                if digit not in table[i]:
+                    indx = only_one_option_in_line(table[i], digit)
                     if indx:
-                        table[j][indx] = i
+                        table[i][indx] = digit
 
-                for j in range(9):
-                    indx = only_one_option_on_line(cols[j], i)
+            for i in range(9):
+                if digit not in cols[i]:
+                    indx = only_one_option_in_line(cols[i], digit)
                     if indx:
-                        table[indx][j] = i
-
-                for j in range(9):
-                    indx = only_one_option_on_line(squads[j], i)
+                        table[indx][i] = digit
+    
+            for i in range(9):
+                if digit not in squads[i]:
+                    indx = only_one_option_in_line(squads[i], digit)
                     if indx:
-                        x, y = squad_index[j][indx]
-                        table[x][y] = i
+                        x, y = squad_index[i][indx]
+                        table[x][y] = digit
+        
+        for i in range(9):
+            two_pairs_line(table, i)
+            two_pairs_line(cols, i)
+            two_pairs_line(squads, i)
 
-        to_log(f'Прогоны: {count}')
-
-        for j in range(9):
-            save_items = []
-            for k in range(9):
-                if isinstance(table[j][k], list):
-                    if len(table[j][k]) == 2:
-                        if table[j][k] in save_items:
-                            two_pairs(table[j], table[j][k])
-                            save_items.remove(table[j][k])
-                        save_items.append(table[j][k])
-
-            save_items = []
-            for k in range(9):
-                if isinstance(cols[j][k], list):
-                    if len(cols[j][k]) == 2:
-                        save_items.append(cols[j][k])
-
-            save_items = []
-            for k in range(9):
-                if isinstance(squads[j][k], list):
-                    if len(squads[j][k]) == 2:
-                        if squads[j][k] in save_items:
-                            two_pairs(squads[j], squads[j][k])
-                        save_items.append(squads[j][k])
-
+    print(f'Количество циклов: {count}')
     excel = pd.DataFrame(table)
+    print(excel.to_string())
+    print()
 
-    '''
+    print('Результат сохранен в файле: output.xlsx')
     writer = pd.ExcelWriter('output.xlsx', engine='xlsxwriter')
     excel.to_excel(writer, 'Sheet1')
     writer._save()
-    '''
-
-    to_log(excel.to_string())
-    print(excel.to_string())
 
 
 if __name__ == '__main__':
