@@ -3,6 +3,54 @@ import pandas as pd
 import xlsxwriter
 import copy
 import openpyxl
+from art import text2art
+
+
+def choose_file():
+    file_name = input('Напишите название файла вместе с расширением(enter - input.xlsx): ')
+
+    if not file_name:
+        file_name = 'input.xlsx'
+
+    if file_name.endswith('.xlsx') and os.path.exists(file_name):
+        excel_file = openpyxl.load_workbook(file_name)
+        excel_sheet = excel_file.active
+
+        table = []
+        for i in range(excel_sheet.max_row - 1):
+            row = []
+            for col in excel_sheet.iter_cols(1, excel_sheet.max_column - 1):
+                row.append(col[i].value)
+            table.append(row)
+
+        return False, table
+    else:
+        print('Неправильный формат файла.')
+        return True
+
+
+def console_table():
+    print('Пишите значения не разделяя их знаками, а вместо пустых значений пишите 0')
+    print()
+
+    table = []
+
+    for raw in range(1, 10):
+        print(f'Введите {raw} строку в таблице:')
+        items = input()
+
+        if len(items) == 9 and items.isdigit():
+            to_tabel = list(items)
+            to_tabel = map(lambda x: int(x), to_tabel)
+
+            print()
+
+            table.append(to_tabel)
+        else:
+            print('Неверное значение!\n')
+            return True, []
+
+    return False, table
 
 
 def zeros_and_empty_to_list_digits(table):
@@ -146,31 +194,20 @@ def two_pairs_line(items, i):
 
 
 def main():
+    """
+    Стартовое меню
+    """
     table = []
-
     choose_mode = True
     while choose_mode:
         mode = input('Для решения судоку выберите способ ввода данных: [1] - Указать xlsx файл, '
                      '[2] - Ввести через коммандную строку, '
                      '[3] - Выйти: ')
+        print()
         if mode == '1':
-            file_name = input('Напишите название файла вместе с расширением: ')
-            if file_name.endswith('.xlsx') and os.path.exists(file_name):
-                excel_file = openpyxl.load_workbook(file_name)
-                excel_sheet = excel_file.active
-
-                table = []
-                for i in range(excel_sheet.max_row - 1):
-                    row = []
-                    for col in excel_sheet.iter_cols(1, excel_sheet.max_column - 1):
-                        row.append(col[i].value)
-                    table.append(row)
-
-                choose_mode = False
-            else:
-                print('Неправильный формат файла.')
+            choose_mode, table = choose_file()
         elif mode == '2':
-            pass
+            choose_mode, table = console_table()
         elif mode == '3':
             return
 
@@ -238,4 +275,7 @@ def main():
 
 
 if __name__ == '__main__':
+    text_art = text2art('SUDOKU SOLUTION')
+    print(text_art)
+
     main()
