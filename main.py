@@ -6,6 +6,9 @@ import openpyxl
 from art import text2art
 
 
+DEBUG = 0
+
+
 def choose_file():
     file_name = input('Напишите название файла вместе с расширением(enter - input.xlsx): ')
 
@@ -193,6 +196,99 @@ def two_pairs_line(items, i):
                     save_items.append(items[i][j])
 
 
+def run_defs(table):
+    count = 0
+    old_table = []
+
+    while old_table != table:
+        count += 1
+        old_table = copy.deepcopy(table)
+        cols = get_cols(table)
+        squads, squad_index = get_squads(table)
+
+        if DEBUG:
+            print(f'############################ COUNT {count} ############################')
+            print(f'############################ ORIGINAL ############################')
+            excel = pd.DataFrame(table)
+            print(excel.to_string())
+            input()
+
+        for digit in range(1, 10):
+            for i in range(9):
+                if digit in table[i]:
+                    item_in_list(table[i], digit)
+                if digit in cols[i]:
+                    item_in_list(cols[i], digit)
+                if digit in squads[i]:
+                    item_in_list(squads[i], digit)
+
+        for i in range(9):
+            open_list_with_one_item(table[i])
+            open_list_with_one_item(cols[i])
+            open_list_with_one_item(squads[i])
+
+        if DEBUG:
+            print(f'################## AFTER item_in_list AND open_list_with_one item ####################')
+            excel = pd.DataFrame(table)
+            print(excel.to_string())
+            input()
+
+        for digit in range(1, 10):
+            for i in range(9):
+                if digit not in table[i]:
+                    indx = only_one_option_in_line(table[i], digit)
+                    if indx:
+                        table[i][indx] = digit
+
+            for i in range(9):
+                if digit not in cols[i]:
+                    indx = only_one_option_in_line(cols[i], digit)
+                    if indx:
+                        table[indx][i] = digit
+
+            for i in range(9):
+                if digit not in squads[i]:
+                    indx = only_one_option_in_line(squads[i], digit)
+                    if indx:
+                        x, y = squad_index[i][indx]
+                        table[x][y] = digit
+
+        if DEBUG:
+            print(f'############################ AFTER one_option_in_line ############################')
+            excel = pd.DataFrame(table)
+            print(excel.to_string())
+            input()
+
+        for i in range(9):
+            two_pairs_line(table, i)
+            two_pairs_line(cols, i)
+            two_pairs_line(squads, i)
+
+        if DEBUG:
+            print(f'############################ AFTER two_pairs_in_line ############################')
+            excel = pd.DataFrame(table)
+            print(excel.to_string())
+            input()
+
+    return table, count
+
+
+def validate_table(table):
+    for i in range(9):
+        for j in range(9):
+            if isinstance(table[i][j], list):
+                return False
+
+    cols = get_cols(table)
+    squads, squad_index = get_squads(table)
+
+    for i in range(9):
+        if sum(table[i]) != 45 or sum(cols[i]) != 45 or sum(squads[i]) != 45:
+            return False
+
+    return True
+
+
 def main():
     """
     Стартовое меню
@@ -211,71 +307,38 @@ def main():
         elif mode == '3':
             return
 
+    """
+    Получение таблицы table и начало работы с данными.
+    """
     table = zeros_and_empty_to_list_digits(table)
-    count = 0
-    old_table = []
 
-    while old_table != table:
-        count += 1
-        old_table = copy.deepcopy(table)
-        cols = get_cols(table)
-        squads, squad_index = get_squads(table)
+    table, count = run_defs(table)
+    if validate_table(table):
+        return table
 
-        """
-        Удаление записей о числах
-        """
-        for digit in range(1, 10):
-            for i in range(9):
-                if digit in table[i]:
-                    item_in_list(table[i], digit)
-                if digit in cols[i]:
-                    item_in_list(cols[i], digit)
-                if digit in squads[i]:
-                    item_in_list(squads[i], digit)
-
-        for i in range(9):
-            open_list_with_one_item(table[i])
-            open_list_with_one_item(cols[i])
-            open_list_with_one_item(squads[i])
-
-        for digit in range(1, 10):
-            for i in range(9):
-                if digit not in table[i]:
-                    indx = only_one_option_in_line(table[i], digit)
-                    if indx:
-                        table[i][indx] = digit
-
-            for i in range(9):
-                if digit not in cols[i]:
-                    indx = only_one_option_in_line(cols[i], digit)
-                    if indx:
-                        table[indx][i] = digit
-    
-            for i in range(9):
-                if digit not in squads[i]:
-                    indx = only_one_option_in_line(squads[i], digit)
-                    if indx:
-                        x, y = squad_index[i][indx]
-                        table[x][y] = digit
-        
-        for i in range(9):
-            two_pairs_line(table, i)
-            two_pairs_line(cols, i)
-            two_pairs_line(squads, i)
-
-    print(f'Количество циклов: {count}')
-    excel = pd.DataFrame(table)
-    print(excel.to_string())
-    print()
-
-    print('Результат сохранен в файле: output.xlsx')
-    writer = pd.ExcelWriter('output.xlsx', engine='xlsxwriter')
-    excel.to_excel(writer, 'Sheet1')
-    writer._save()
+    for i in range(9):
+        for j in range(9):
+            if isinstance(table[i][j], list):
+                for item in table[i][j]:
+                    new_table = copy.deepcopy(table)
+                    new_table[i][j] = item
+                    new_table, count = run_defs(new_table)
+                    if validate_table(new_table):
+                        return new_table
 
 
 if __name__ == '__main__':
     text_art = text2art('SUDOKU SOLUTION')
     print(text_art)
 
-    main()
+    table = main()
+
+    excel = pd.DataFrame(table)
+    print()
+    print('Решение:')
+    print(excel.to_string())
+    print()
+    print('Результат сохранен в файле: output.xlsx')
+    writer = pd.ExcelWriter('output.xlsx', engine='xlsxwriter')
+    excel.to_excel(writer, 'Sheet1')
+    writer._save()
